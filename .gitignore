@@ -1,0 +1,11 @@
+data/
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+.pytest_cache/
+.ruff_cache/
+tests/_media/
+tests/screenshot-*.png
+tests/*.log

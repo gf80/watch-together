@@ -1,0 +1,7 @@
+# В репозитории всегда LF, иначе Dockerfile с CRLF ломает сборку.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.wav binary
+*.mp4 binary

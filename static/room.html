@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Watch Together</title>
+    <link rel="stylesheet" href="/static/css/app.css" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%AC%3C/text%3E%3C/svg%3E" />
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
+  </head>
+  <body>
+    <div class="room-shell">
+      <section class="stage">
+        <div class="topbar">
+          <a href="/" class="btn icon sm" title="В лобби" aria-label="В лобби">
+            <svg class="ic"><use href="#i-arrow-left" /></svg>
+          </a>
+          <span class="room-title" id="room-title">Комната</span>
+          <span class="sync-badge" id="sync-badge">ожидание…</span>
+          <span class="grow"></span>
+          <button
+            class="btn icon sm"
+            id="set-source"
+            title="Источник видео"
+            aria-label="Источник видео"
+          >
+            <svg class="ic"><use href="#i-film" /></svg>
+          </button>
+          <button
+            class="btn icon sm"
+            id="copy-link"
+            title="Скопировать ссылку"
+            aria-label="Скопировать ссылку"
+          >
+            <svg class="ic"><use href="#i-link" /></svg>
+          </button>
+          <button
+            class="btn icon sm danger"
+            id="delete-room"
+            title="Удалить комнату"
+            aria-label="Удалить комнату"
+            hidden
+          >
+            <svg class="ic"><use href="#i-trash" /></svg>
+          </button>
+        </div>
+
+        <div class="video-wrap">
+          <video id="video" playsinline></video>
+          <div class="empty-state" id="empty">
+            <svg class="ic lg"><use href="#i-film" /></svg>
+            <h2 id="empty-title">Видео не выбрано</h2>
+            <p class="muted" id="empty-text">
+              Вставьте ссылку: прямой файл (.mp4, .webm), HLS-поток (.m3u8) или страницу с
+              видео. Загружать файл на сервер не нужно.
+            </p>
+            <button class="btn primary" id="empty-source">
+              <svg class="ic fill"><use href="#i-film" /></svg>
+              Задать источник
+            </button>
+          </div>
+        </div>
+
+        <div class="controls">
+          <div class="scrub">
+            <span class="time right" id="t-now">0:00</span>
+            <input
+              type="range"
+              id="seek"
+              min="0"
+              max="1000"
+              value="0"
+              step="1"
+              aria-label="Позиция"
+            />
+            <span class="time" id="t-end">0:00</span>
+          </div>
+          <div class="controls-row">
+            <button
+              class="btn primary"
+              id="play"
+              title="Пуск и пауза для всех"
+              aria-label="Пуск и пауза для всех"
+            >
+              <svg class="ic fill" id="play-icon"><use href="#i-play" /></svg>
+              <span id="play-label">Пуск</span>
+            </button>
+            <button class="btn icon" id="back" title="Назад 10 секунд" aria-label="Назад 10 секунд">
+              <svg class="ic"><use href="#i-back10" /></svg>
+            </button>
+            <button
+              class="btn icon"
+              id="fwd"
+              title="Вперёд 10 секунд"
+              aria-label="Вперёд 10 секунд"
+            >
+              <svg class="ic"><use href="#i-fwd10" /></svg>
+            </button>
+            <span class="grow"></span>
+            <button
+              class="btn icon"
+              id="mute"
+              aria-pressed="false"
+              title="Звук только у вас"
+              aria-label="Звук"
+            >
+              <svg class="ic"><use href="#i-volume" /></svg>
+            </button>
+            <button
+              class="btn icon"
+              id="fs"
+              title="Во весь экран"
+              aria-label="Во весь экран"
+            >
+              <svg class="ic"><use href="#i-maximize" /></svg>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <aside class="side">
+        <div class="side-tabs">
+          <button data-tab="chat" class="active">
+            <svg class="ic"><use href="#i-chat" /></svg>
+            Чат
+          </button>
+          <button data-tab="people">
+            <svg class="ic"><use href="#i-users" /></svg>
+            Зрители <span class="count" id="people-count">0</span>
+          </button>
+        </div>
+        <div class="chat-log" id="chat"></div>
+        <div class="people" id="people" hidden></div>
+        <form class="chat-form" id="chat-form">
+          <input
+            type="text"
+            id="chat-input"
+            maxlength="1000"
+            placeholder="Сообщение…"
+            autocomplete="off"
+            aria-label="Сообщение"
+          />
+          <button class="btn primary icon" type="submit" title="Отправить" aria-label="Отправить">
+            <svg class="ic fill"><use href="#i-send" /></svg>
+          </button>
+        </form>
+      </aside>
+    </div>
+
+    <div class="modal-back" id="modal" hidden>
+      <div class="card modal">
+        <div class="modal-head">
+          <h3>Источник видео</h3>
+          <button class="btn icon sm ghost" id="src-close" type="button" title="Закрыть" aria-label="Закрыть">
+            <svg class="ic"><use href="#i-x" /></svg>
+          </button>
+        </div>
+        <div class="muted" style="font-size: 13px">Файл не загружается на сервер — только ссылка.</div>
+        <label class="field">
+          <span>Ссылка</span>
+          <input type="text" id="src-url" placeholder="https://…/movie.mp4 или https://…/stream.m3u8" />
+        </label>
+        <label class="field">
+          <span>Название (необязательно)</span>
+          <input type="text" id="src-title" maxlength="120" placeholder="Фильм" />
+        </label>
+        <label class="check">
+          <input type="checkbox" id="src-bypass" />
+          <span>Без прокси — быстрее, но источник должен отдавать CORS-заголовки.</span>
+        </label>
+        <div class="hint" id="src-hint"></div>
+        <div class="modal-actions">
+          <button class="btn ghost" id="src-cancel" type="button">Отмена</button>
+          <button class="btn primary" id="src-save" type="button">
+            <svg class="ic"><use href="#i-check" /></svg>
+            Загрузить
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-back" id="confirm" hidden>
+      <div class="card modal" style="width: min(420px, 100%)">
+        <div class="modal-head">
+          <svg class="ic lg" style="color: var(--err)"><use href="#i-alert" /></svg>
+          <h3>Удалить комнату?</h3>
+        </div>
+        <p class="muted" style="margin: 0; font-size: 14px">
+          Комната <span class="tag" id="confirm-id"></span> будет закрыта для всех, чат и позиция
+          удалены. Отменить будет нельзя.
+        </p>
+        <div class="modal-actions">
+          <button class="btn ghost" id="confirm-cancel" type="button">Оставить</button>
+          <button class="btn danger" id="confirm-ok" type="button">
+            <svg class="ic"><use href="#i-trash" /></svg>
+            Удалить
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast-host" id="toasts"></div>
+    <script src="/static/js/common.js"></script>
+    <script src="/static/js/room.js"></script>
+  </body>
+</html>

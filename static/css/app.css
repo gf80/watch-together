@@ -1,0 +1,843 @@
+/* Тёмная матовая тема: плоские поверхности, тонкие границы, один сдержанный акцент. */
+:root {
+  --bg: #0d0f11;
+  --bg-2: #14171a;
+  --bg-3: #1b1f23;
+  --bg-4: #23282d;
+  --border: #24292e;
+  --border-soft: #1d2226;
+  --text: #e9ebec;
+  --muted: #8a9299;
+  --faint: #666e74;
+  --accent: #7aa2bd;
+  --accent-dim: #2c3a44;
+  --accent-ink: #0d0f11;
+  --ok: #79a86f;
+  --warn: #c19a52;
+  --err: #c0655c;
+  --radius: 10px;
+  --radius-sm: 8px;
+  --tap: 36px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.5 "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+::selection {
+  background: var(--accent-dim);
+}
+
+*::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--bg-4);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: #2f353b;
+}
+
+/* Иконки */
+.ic {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ic.fill {
+  fill: currentColor;
+  stroke: none;
+}
+
+.ic.lg {
+  width: 22px;
+  height: 22px;
+}
+
+/* Кнопки */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: var(--tap);
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-3);
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--bg-4);
+  border-color: #2e343a;
+}
+
+.btn:active:not(:disabled) {
+  background: #1a1e22;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+
+.btn.primary:hover:not(:disabled) {
+  background: #8bb2cb;
+  border-color: #8bb2cb;
+}
+
+.btn.ghost {
+  background: transparent;
+}
+
+.btn.sm {
+  min-height: 30px;
+  padding: 5px 10px;
+  font-size: 13px;
+}
+
+.btn.icon {
+  width: var(--tap);
+  min-height: var(--tap);
+  padding: 0;
+}
+
+.btn.icon.sm {
+  width: 30px;
+  min-height: 30px;
+}
+
+.btn[aria-pressed="true"] {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn.danger {
+  color: var(--err);
+  border-color: #3a2725;
+  background: #1e1514;
+}
+
+.btn.danger:hover:not(:disabled) {
+  background: #2a1c1b;
+  border-color: #4d302d;
+}
+
+/* Поля */
+input[type="text"],
+input[type="url"],
+input[type="number"],
+select,
+textarea {
+  width: 100%;
+  min-height: var(--tap);
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  outline: none;
+  transition: border-color 0.12s ease;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--faint);
+}
+
+input:hover,
+select:hover {
+  border-color: #2e343a;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--accent);
+}
+
+/* Карточки и мелочь */
+.card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.faint {
+  color: var(--faint);
+}
+
+.row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.tag.live {
+  color: var(--ok);
+  border-color: #2c4230;
+}
+
+.tag.host {
+  color: var(--accent);
+  border-color: #2c3a44;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--faint);
+  display: inline-block;
+  flex: none;
+}
+
+.dot.on {
+  background: var(--ok);
+}
+
+.dot.off {
+  background: var(--err);
+}
+
+/* Уведомления */
+.toast-host {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 100;
+  width: min(420px, calc(100vw - 24px));
+}
+
+.toast {
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  animation: rise 0.18s ease;
+}
+
+.toast.err {
+  border-color: #3a2725;
+  background: #1e1514;
+}
+
+.toast.ok {
+  border-color: #2c4230;
+  background: #141d16;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* Лобби */
+.lobby {
+  max-width: 940px;
+  margin: 0 auto;
+  padding: 36px 18px 56px;
+}
+
+.lobby-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.lobby-head h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.lobby-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+  padding: 18px;
+}
+
+.lobby-form label {
+  display: block;
+}
+
+.lobby-form label > span {
+  display: block;
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.room-card {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 13px 15px;
+  margin-bottom: 9px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.room-card:hover {
+  border-color: #2e343a;
+}
+
+@media (max-width: 720px) {
+  .lobby-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Комната: оболочка */
+.room-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 350px;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.stage {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: #0a0c0e;
+}
+
+/* Верхняя панель комнаты */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border-soft);
+  flex-wrap: wrap;
+}
+
+.room-title {
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 60px;
+}
+
+.sync-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* Видео */
+.video-wrap {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  background: #000;
+}
+
+video {
+  width: 100%;
+  height: 100%;
+  background: #000;
+  outline: none;
+}
+
+.empty-state {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+  padding: 22px;
+  background: #0a0c0e;
+}
+
+.empty-state h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.empty-state p {
+  margin: 0 0 6px;
+  max-width: 460px;
+  font-size: 14px;
+}
+
+/* Панель управления */
+.controls {
+  background: var(--bg-2);
+  border-top: 1px solid var(--border-soft);
+  padding: 9px 12px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.scrub {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.time {
+  font-size: 12.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  width: 46px;
+  flex: none;
+}
+
+.time.right {
+  text-align: right;
+}
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 20px;
+  background: transparent;
+  outline: none;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 5px;
+  border-radius: 999px;
+  background: var(--bg-4);
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -4.5px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: none;
+}
+
+input[type="range"]::-moz-range-track {
+  height: 5px;
+  border-radius: 999px;
+  background: var(--bg-4);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.controls-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* Боковая панель: чат и зрители */
+.side {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-left: 1px solid var(--border-soft);
+  background: var(--bg-2);
+}
+
+.side-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 6px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.side-tabs button {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 6px 8px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 13.5px;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.side-tabs button:hover {
+  background: var(--bg-3);
+  color: var(--text);
+}
+
+.side-tabs button.active {
+  background: var(--bg-3);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.side-tabs .count {
+  font-size: 11.5px;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.chat-log {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.msg {
+  max-width: 92%;
+}
+
+.msg .meta {
+  font-size: 11.5px;
+  color: var(--faint);
+  margin-bottom: 3px;
+}
+
+.msg .bubble {
+  padding: 7px 11px;
+  border-radius: var(--radius);
+  background: var(--bg-3);
+  border: 1px solid var(--border-soft);
+  word-break: break-word;
+  white-space: pre-wrap;
+  font-size: 14px;
+}
+
+.msg.mine {
+  align-self: flex-end;
+}
+
+.msg.mine .meta {
+  text-align: right;
+}
+
+.msg.mine .bubble {
+  background: var(--accent-dim);
+  border-color: #35485a;
+}
+
+.msg.system {
+  align-self: center;
+  max-width: 100%;
+}
+
+.msg.system .bubble {
+  background: transparent;
+  border: none;
+  color: var(--faint);
+  font-size: 12.5px;
+  text-align: center;
+  padding: 2px;
+}
+
+.people {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.person {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-3);
+  font-size: 14px;
+}
+
+.person .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.person .ic.star {
+  width: 13px;
+  height: 13px;
+  color: var(--warn);
+}
+
+.person .drift {
+  margin-left: auto;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.chat-form {
+  display: flex;
+  gap: 7px;
+  padding: 8px;
+  border-top: 1px solid var(--border-soft);
+  background: var(--bg-2);
+}
+
+.chat-form input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Модальные окна */
+.modal-back {
+  position: fixed;
+  inset: 0;
+  background: #05070a;
+  opacity: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 18px;
+}
+
+.modal {
+  width: min(540px, 100%);
+  padding: 18px;
+  max-height: 90dvh;
+  overflow-y: auto;
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.modal-head h3 {
+  margin: 0;
+  font-size: 17px;
+  flex: 1;
+}
+
+.modal h3 {
+  margin: 0 0 4px;
+}
+
+label.field {
+  display: block;
+  margin-top: 14px;
+}
+
+label.field > span {
+  display: block;
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-top: 14px;
+  padding: 10px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-3);
+  cursor: pointer;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+
+.check input {
+  width: 16px;
+  height: 16px;
+  margin: 1px 0 0;
+  accent-color: var(--accent);
+  flex: none;
+}
+
+.hint {
+  font-size: 12.5px;
+  color: var(--faint);
+  margin-top: 8px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 18px;
+  justify-content: flex-end;
+}
+
+/* Телефон: видео сверху, чат под ним, оба видны без прокрутки */
+@media (max-width: 900px) {
+  .room-shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto minmax(0, 1fr);
+  }
+
+  .video-wrap {
+    flex: none;
+    aspect-ratio: 16 / 9;
+    max-height: 40dvh;
+  }
+
+  .side {
+    border-left: none;
+    border-top: 1px solid var(--border-soft);
+  }
+
+  .topbar {
+    padding: 6px 8px;
+  }
+
+  .controls {
+    padding: 8px 10px 10px;
+  }
+
+  :root {
+    --tap: 40px;
+  }
+
+  .btn.icon {
+    width: 40px;
+  }
+}
+
+@media (max-width: 420px) {
+  .room-title {
+    font-size: 14px;
+  }
+}

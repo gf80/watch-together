@@ -1,0 +1,20 @@
+services:
+  watch-together:
+    build: .
+    image: watch-together
+    container_name: watch-together
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # База и кэш прокси сохраняются между перезапусками и обновлениями.
+      - ./data:/app/data
+    environment:
+      # Защита от SSRF: сервер не проксирует потоки на localhost и приватные
+      # адреса. Поставьте "1", только если нужен доступ к видео с локальной
+      # сети/NAS — имейте в виду, что тогда любой посетитель сможет через
+      # ваш сервер обращаться к вашим внутренним адресам.
+      WT_ALLOW_PRIVATE_PROXY: "0"
+    # Docker сам следит за healthcheck из Dockerfile, но ограничиваем
+    # параллельные видео-потоки, чтобы не забить CPU на маленьком VPS.
+    stop_grace_period: 20s

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Watch Together — смотрим вместе</title>
+    <link rel="stylesheet" href="/static/css/app.css" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%AC%3C/text%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <main class="lobby">
+      <header class="lobby-head">
+        <div>
+          <h1>Watch Together</h1>
+          <div class="muted" style="font-size: 14px">
+            Общая пауза, общий перемот и чат. Файлы не загружаются на сервер.
+          </div>
+        </div>
+        <span class="tag" id="caps">проверяем окружение…</span>
+      </header>
+
+      <section class="card lobby-form">
+        <label>
+          <span>Как вас зовут</span>
+          <input type="text" id="name" maxlength="32" placeholder="Например, Саша" />
+        </label>
+        <label>
+          <span>Название комнаты (необязательно)</span>
+          <input type="text" id="title" maxlength="80" placeholder="Пятничный киноманан" />
+        </label>
+        <button class="btn primary" id="create" style="height: 42px">
+          <svg class="ic fill"><use href="#i-play-circle" /></svg>
+          Создать комнату
+        </button>
+      </section>
+
+      <section class="row" style="margin: 22px 0 12px; flex-wrap: wrap">
+        <h2 style="font-size: 16px; margin: 0" class="grow">Открытые комнаты</h2>
+        <div class="row">
+          <input
+            type="text"
+            id="join-id"
+            maxlength="6"
+            placeholder="код комнаты"
+            style="width: 130px; text-transform: lowercase"
+            aria-label="Код комнаты"
+          />
+          <button class="btn" id="join">
+            <svg class="ic"><use href="#i-arrow-left" /></svg>
+            Войти
+          </button>
+          <button class="btn icon" id="refresh" title="Обновить список" aria-label="Обновить список">
+            <svg class="ic"><use href="#i-refresh" /></svg>
+          </button>
+        </div>
+      </section>
+
+      <div id="rooms" class="muted">Загрузка…</div>
+    </main>
+
+    <div class="toast-host" id="toasts"></div>
+    <script src="/static/js/common.js"></script>
+    <script src="/static/js/lobby.js"></script>
+  </body>
+</html>
