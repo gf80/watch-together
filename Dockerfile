@@ -37,7 +37,13 @@ COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 # Непривилегированный пользователь владеет /app и данными. Сам контейнер
 # стартует от root (нужен для правки bind-mount), но entrypoint сразу
 # переключается на wt — процесс приложения всегда непривилегированный.
-RUN useradd --system --create-home --uid 1000 --shell /usr/sbin/nologin wt \
+# GID задаём явно: у системного пользователя группа иначе получила бы случайный
+# номер из системного диапазона, и права вида chown -R 1000:1000 на хосте
+# переставали бы совпадать с владельцем внутри контейнера. На Ubuntu первому
+# пользователю как раз достаётся 1000, так что bind-mount сразу становится
+# доступен без правки.
+RUN groupadd --system --gid 1000 wt \
+    && useradd --system --create-home --uid 1000 --gid 1000 --shell /usr/sbin/nologin wt \
     && chmod 0755 /usr/local/bin/docker-entrypoint.sh \
     && mkdir -p /app/data /app/data/cache \
     && chown -R wt:wt /app
