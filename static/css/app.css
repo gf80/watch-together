@@ -1,23 +1,25 @@
-/* Тёмная матовая тема: плоские поверхности, тонкие границы, один сдержанный акцент. */
+/* Тёмная серая тема: почти чёрный фон, плоские поверхности, тонкие границы.
+   Акцент намеренно неброский — интерфейс не должен спорить с картинкой. */
 :root {
-  --bg: #0d0f11;
-  --bg-2: #14171a;
-  --bg-3: #1b1f23;
-  --bg-4: #23282d;
-  --border: #24292e;
-  --border-soft: #1d2226;
-  --text: #e9ebec;
-  --muted: #8a9299;
-  --faint: #666e74;
-  --accent: #7aa2bd;
-  --accent-dim: #2c3a44;
-  --accent-ink: #0d0f11;
-  --ok: #79a86f;
-  --warn: #c19a52;
-  --err: #c0655c;
+  --bg: #08090a;
+  --bg-2: #101113;
+  --bg-3: #17181a;
+  --bg-4: #1f2124;
+  --border: #232529;
+  --border-soft: #1a1c1f;
+  --text: #e4e5e6;
+  --muted: #83858a;
+  --faint: #5d6065;
+  --accent: #8e9aa6;
+  --accent-dim: #262b31;
+  --accent-ink: #08090a;
+  --ok: #6f9c6a;
+  --warn: #b08f52;
+  --err: #b4635b;
   --radius: 10px;
   --radius-sm: 8px;
   --tap: 36px;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 * {
@@ -122,7 +124,8 @@ textarea {
   background: var(--bg-3);
   color: var(--text);
   cursor: pointer;
-  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+  transition: background 0.16s var(--ease), border-color 0.16s var(--ease),
+    color 0.16s var(--ease), transform 0.12s var(--ease);
   white-space: nowrap;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
@@ -130,11 +133,12 @@ textarea {
 
 .btn:hover:not(:disabled) {
   background: var(--bg-4);
-  border-color: #2e343a;
+  border-color: #2e3135;
 }
 
 .btn:active:not(:disabled) {
-  background: #1a1e22;
+  background: #141517;
+  transform: scale(0.97);
 }
 
 .btn:disabled {
@@ -150,12 +154,26 @@ textarea {
 }
 
 .btn.primary:hover:not(:disabled) {
-  background: #8bb2cb;
-  border-color: #8bb2cb;
+  background: #a3aeb9;
+  border-color: #a3aeb9;
 }
 
+/* Полупрозрачные кнопки поверх видео: без своей подложки не перекрывают кадр. */
 .btn.ghost {
-  background: transparent;
+  background: rgba(12, 13, 14, 0.55);
+  border-color: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(6px);
+}
+
+.btn.ghost:hover:not(:disabled) {
+  background: rgba(28, 30, 33, 0.75);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.btn.ghost[aria-pressed="true"] {
+  background: rgba(142, 154, 166, 0.28);
+  border-color: rgba(142, 154, 166, 0.6);
+  color: #fff;
 }
 
 .btn.sm {
@@ -328,6 +346,120 @@ textarea:focus {
   }
 }
 
+/* --- Анимации ------------------------------------------------- */
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* Появление карточек комнат по очереди — не рандом, а по индексу, иначе
+   при каждом обновлении всё мигает заново. */
+.room-card {
+  animation: fade-up 0.26s var(--ease) both;
+}
+
+.room-card:nth-child(1) { animation-delay: 0ms; }
+.room-card:nth-child(2) { animation-delay: 25ms; }
+.room-card:nth-child(3) { animation-delay: 50ms; }
+.room-card:nth-child(4) { animation-delay: 75ms; }
+.room-card:nth-child(n + 5) { animation-delay: 100ms; }
+
+.lobby-form,
+.lobby-head {
+  animation: fade-up 0.3s var(--ease) both;
+}
+
+.msg:not(.system) {
+  animation: pop-in 0.2s var(--ease) both;
+}
+
+.modal {
+  animation: pop-in 0.2s var(--ease) both;
+}
+
+.tag.live::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: pulse-dot 1.8s ease-in-out infinite;
+}
+
+/* Значок непрочитанных */
+.badge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+  animation: pop-in 0.2s var(--ease);
+}
+
+/* Сообщения: непрочитанные подсвечены, свои помечены галочкой прочтения */
+.msg.unseen .bubble {
+  border-color: #3a3f45;
+  background: #1d1f22;
+}
+
+.msg.pending .seen,
+.msg.mine .seen {
+  font-size: 11px;
+  color: var(--faint);
+  text-align: right;
+  min-height: 13px;
+}
+
+.msg.mine .seen:not(:empty)::before {
+  content: "✓ ";
+}
+
+/* Плавное вращение иконки при ручном обновлении */
+.btn.refresh.spin .ic {
+  animation: spin 0.7s var(--ease) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 /* Лобби */
 .lobby {
   max-width: 940px;
@@ -370,6 +502,7 @@ textarea:focus {
   margin-bottom: 6px;
 }
 
+/* Карточка комнаты — ссылка целиком: нажать можно в любое место строки. */
 .room-card {
   display: flex;
   gap: 12px;
@@ -379,10 +512,73 @@ textarea:focus {
   background: var(--bg-2);
   border: 1px solid var(--border);
   border-radius: var(--radius);
+  color: inherit;
+  text-decoration: none;
+  transition: background 0.16s var(--ease), border-color 0.16s var(--ease),
+    transform 0.16s var(--ease);
 }
 
 .room-card:hover {
-  border-color: #2e343a;
+  text-decoration: none;
+  background: var(--bg-3);
+  border-color: #2e3135;
+  transform: translateY(-1px);
+}
+
+.room-card:active {
+  transform: translateY(0) scale(0.995);
+}
+
+.room-play {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.room-play .ic {
+  width: 16px;
+  height: 16px;
+}
+
+.room-card:hover .room-play {
+  color: var(--text);
+}
+
+.room-code {
+  flex: none;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--faint);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  padding: 3px 7px;
+}
+
+.rooms-empty {
+  padding: 22px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--muted);
+  background: var(--bg-2);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+}
+
+.rooms-head {
+  margin: 22px 0 12px;
+  flex-wrap: wrap;
+}
+
+.rooms-head h2 {
+  margin: 0;
+  font-size: 16px;
 }
 
 @media (max-width: 720px) {
@@ -449,6 +645,10 @@ textarea:focus {
   justify-content: center;
   min-height: 0;
   background: #000;
+  /* Клавиатура на телефоне уменьшает dvh. Нижняя граница в пикселях не даёт
+     видео схлопнуться в ноль, когда остаётся мало места. */
+  min-block-size: 150px;
+  overflow: hidden;
 }
 
 video {
@@ -456,6 +656,92 @@ video {
   height: 100%;
   background: #000;
   outline: none;
+}
+
+/* Панель управления поверх кадра */
+.player {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 0.22s var(--ease);
+}
+
+.player[hidden] {
+  display: none;
+}
+
+/* Скрытая панель не должна перехватывать клики по кадру. */
+.player.idle,
+.player.idle .player-center,
+.player.idle .player-bar,
+.player.idle .player-scrim {
+  pointer-events: none;
+}
+
+.player.idle {
+  opacity: 0;
+}
+
+.player-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.32) 0%,
+    rgba(0, 0, 0, 0) 22%,
+    rgba(0, 0, 0, 0) 52%,
+    rgba(0, 0, 0, 0.62) 100%
+  );
+  opacity: 0.85;
+  transition: opacity 0.22s var(--ease);
+}
+
+.player-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 66px;
+  height: 66px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(10, 11, 12, 0.62);
+  color: #fff;
+  cursor: pointer;
+  pointer-events: auto;
+  backdrop-filter: blur(8px);
+  transition: transform 0.18s var(--ease), background 0.18s var(--ease);
+}
+
+.player-center:hover {
+  background: rgba(30, 32, 35, 0.78);
+  transform: translate(-50%, -50%) scale(1.06);
+}
+
+.player-center:active {
+  transform: translate(-50%, -50%) scale(0.96);
+}
+
+.player-center .ic {
+  width: 26px;
+  height: 26px;
+}
+
+.player-bar {
+  position: relative;
+  padding: 8px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: auto;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.66), rgba(0, 0, 0, 0));
 }
 
 .empty-state {
@@ -480,16 +766,6 @@ video {
   margin: 0 0 6px;
   max-width: 460px;
   font-size: 14px;
-}
-
-/* Панель управления */
-.controls {
-  background: var(--bg-2);
-  border-top: 1px solid var(--border-soft);
-  padding: 9px 12px 11px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
 }
 
 .scrub {
@@ -805,13 +1081,14 @@ label.field > span {
 @media (max-width: 900px) {
   .room-shell {
     grid-template-columns: 1fr;
-    grid-template-rows: auto auto auto minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr);
   }
 
   .video-wrap {
     flex: none;
     aspect-ratio: 16 / 9;
     max-height: 40dvh;
+    min-height: 0;
   }
 
   .side {
@@ -823,16 +1100,48 @@ label.field > span {
     padding: 6px 8px;
   }
 
-  .controls {
-    padding: 8px 10px 10px;
-  }
-
   :root {
     --tap: 40px;
   }
 
   .btn.icon {
     width: 40px;
+  }
+
+  /* Компактнее панель на телефоне: экономим высоту, её занимает клавиатура. */
+  .player-bar {
+    padding: 6px 8px 8px;
+  }
+
+  .player-center {
+    width: 56px;
+    height: 56px;
+  }
+
+  .player-center .ic {
+    width: 22px;
+    height: 22px;
+  }
+
+  .time {
+    width: 40px;
+    font-size: 11.5px;
+  }
+}
+
+/* Когда клавиатура открыта, dvh уменьшается. Оставляем видео читаемым,
+   а остальное место отдаём чату: так картинка не исчезает из экрана. */
+@media (max-width: 900px) and (max-height: 620px) {
+  .video-wrap {
+    max-height: 32dvh;
+  }
+
+  .topbar {
+    padding: 4px 8px;
+  }
+
+  .room-title {
+    font-size: 13.5px;
   }
 }
 

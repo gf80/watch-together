@@ -2,7 +2,13 @@
 <html lang="ru">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <!-- interactive-widget=resizes-content заставляет браузер сжимать только
+         область контента под клавиатуру, а не всю страницу: благодаря этому
+         видео не схлопывается, когда открывается клавиатура чата. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
+    />
     <title>Watch Together</title>
     <link rel="stylesheet" href="/static/css/app.css" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%AC%3C/text%3E%3C/svg%3E" />
@@ -47,6 +53,64 @@
 
         <div class="video-wrap">
           <video id="video" playsinline></video>
+
+          <!-- Панель управления лежит поверх видео, а не под ним. Это и
+               экономит высоту на телефоне, и даёт привычные полупрозрачные
+               кнопки, как в обычных плеерах. -->
+          <div class="player" id="player" hidden>
+            <div class="player-scrim"></div>
+            <button
+              class="player-center"
+              id="play-center"
+              title="Пуск и пауза для всех"
+              aria-label="Пуск и пауза для всех"
+            >
+              <svg class="ic fill" id="play-center-icon"><use href="#i-play" /></svg>
+            </button>
+            <div class="player-bar">
+              <div class="scrub">
+                <span class="time right" id="t-now">0:00</span>
+                <input
+                  type="range"
+                  id="seek"
+                  min="0"
+                  max="1000"
+                  value="0"
+                  step="1"
+                  aria-label="Позиция"
+                />
+                <span class="time" id="t-end">0:00</span>
+              </div>
+              <div class="controls-row">
+                <button class="btn icon ghost" id="play" title="Пуск и пауза для всех" aria-label="Пуск и пауза для всех">
+                  <svg class="ic fill"><use href="#i-play" /></svg>
+                </button>
+                <button class="btn icon ghost" id="back" title="Назад 10 секунд" aria-label="Назад 10 секунд">
+                  <svg class="ic"><use href="#i-back10" /></svg>
+                </button>
+                <button class="btn icon ghost" id="fwd" title="Вперёд 10 секунд" aria-label="Вперёд 10 секунд">
+                  <svg class="ic"><use href="#i-fwd10" /></svg>
+                </button>
+                <span class="grow"></span>
+                <button
+                  class="btn icon ghost"
+                  id="sound-toggle"
+                  title="Звук новых сообщений"
+                  aria-label="Звук новых сообщений"
+                  aria-pressed="true"
+                >
+                  <svg class="ic"><use href="#i-bell" /></svg>
+                </button>
+                <button class="btn icon ghost" id="mute" aria-pressed="false" title="Звук только у вас" aria-label="Звук">
+                  <svg class="ic"><use href="#i-volume" /></svg>
+                </button>
+                <button class="btn icon ghost" id="fs" title="Во весь экран" aria-label="Во весь экран">
+                  <svg class="ic"><use href="#i-maximize" /></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div class="empty-state" id="empty">
             <svg class="ic lg"><use href="#i-film" /></svg>
             <h2 id="empty-title">Видео не выбрано</h2>
@@ -61,61 +125,6 @@
           </div>
         </div>
 
-        <div class="controls">
-          <div class="scrub">
-            <span class="time right" id="t-now">0:00</span>
-            <input
-              type="range"
-              id="seek"
-              min="0"
-              max="1000"
-              value="0"
-              step="1"
-              aria-label="Позиция"
-            />
-            <span class="time" id="t-end">0:00</span>
-          </div>
-          <div class="controls-row">
-            <button
-              class="btn primary"
-              id="play"
-              title="Пуск и пауза для всех"
-              aria-label="Пуск и пауза для всех"
-            >
-              <svg class="ic fill" id="play-icon"><use href="#i-play" /></svg>
-              <span id="play-label">Пуск</span>
-            </button>
-            <button class="btn icon" id="back" title="Назад 10 секунд" aria-label="Назад 10 секунд">
-              <svg class="ic"><use href="#i-back10" /></svg>
-            </button>
-            <button
-              class="btn icon"
-              id="fwd"
-              title="Вперёд 10 секунд"
-              aria-label="Вперёд 10 секунд"
-            >
-              <svg class="ic"><use href="#i-fwd10" /></svg>
-            </button>
-            <span class="grow"></span>
-            <button
-              class="btn icon"
-              id="mute"
-              aria-pressed="false"
-              title="Звук только у вас"
-              aria-label="Звук"
-            >
-              <svg class="ic"><use href="#i-volume" /></svg>
-            </button>
-            <button
-              class="btn icon"
-              id="fs"
-              title="Во весь экран"
-              aria-label="Во весь экран"
-            >
-              <svg class="ic"><use href="#i-maximize" /></svg>
-            </button>
-          </div>
-        </div>
       </section>
 
       <aside class="side">
@@ -123,6 +132,7 @@
           <button data-tab="chat" class="active">
             <svg class="ic"><use href="#i-chat" /></svg>
             Чат
+            <span class="badge" id="chat-unread" hidden>0</span>
           </button>
           <button data-tab="people">
             <svg class="ic"><use href="#i-users" /></svg>

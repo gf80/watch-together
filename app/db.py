@@ -46,6 +46,11 @@ CREATE TABLE IF NOT EXISTS messages (
 CREATE INDEX IF NOT EXISTS idx_messages_room ON messages (room_id, id);
 """
 
+# Добавляется отдельно, чтобы старая база обновилась без потери истории.
+MIGRATIONS = [
+    ("ALTER TABLE messages ADD COLUMN seen_at REAL", "messages.seen_at"),
+]
+
 
 class Database:
     def __init__(self, path: str | Path = config.DB_PATH) -> None:
@@ -60,7 +65,22 @@ class Database:
         await self._conn.execute("PRAGMA journal_mode=WAL")
         await self._conn.execute("PRAGMA foreign_keys=ON")
         await self._conn.executescript(SCHEMA)
+        await self._migrate()
         await self._conn.commit()
+
+    async def _migrate(self) -> None:
+        """Добавляет новые колонки в уже существующую базу."""
+        for statement, probe in MIGRATIONS:
+            table, _, column = probe.partition(".")
+            rows = await self.fetch_all(f"PRAGMA table_info({table})")
+            if any(row["name"] == column for row in rows):
+                continue
+            try:
+                await self.conn.execute(statement)
+            except aiosqlite.OperationalError as exc:
+                # Колонка появилась раньше — гонка при параллельном старте.
+                if "duplicate column" not in str(exc).lower():
+                    raise
 
     async def close(self) -> None:
         if self._conn is not None:
@@ -130,7 +150,30 @@ class Database:
             "author_id": author_id,
             "text": text,
             "ts": ts,
+            "seen_at": None,
         }
+
+    async def mark_seen(self, room_id: str, message_id: int) -> float | None:
+        """Отмечает сообщение комнаты прочитанным.
+
+        Повторная отметка не перезаписывает время. Возвращает сохранённое время
+        или None, если такого сообщения в комнате нет.
+        """
+        rows = await self.fetch_all(
+            "SELECT seen_at FROM messages WHERE id = ? AND room_id = ?",
+            (message_id, room_id),
+        )
+        if not rows:
+            return None
+        if rows[0]["seen_at"] is not None:
+            return float(rows[0]["seen_at"])
+        now = time.time()
+        await self.conn.execute(
+            "UPDATE messages SET seen_at = ? WHERE id = ? AND seen_at IS NULL",
+            (now, message_id),
+        )
+        await self.conn.commit()
+        return now
 
     async def recent_messages(self, room_id: str, limit: int) -> list[dict[str, Any]]:
         rows = await self.fetch_all(

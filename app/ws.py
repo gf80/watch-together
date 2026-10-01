@@ -83,6 +83,10 @@ async def _dispatch(manager: RoomManager, room, user, data: Any) -> None:
         await manager.add_message(room, user, str(data.get("text", ""))[:MAX_TEXT])
         return
 
+    if kind == "chat.seen":
+        await manager.mark_seen(room, user, data.get("id"))
+        return
+
     if kind == "typing":
         target = str(data.get("target", "chat"))
         await manager.broadcast(

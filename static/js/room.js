@@ -127,10 +127,20 @@ let limits = { hard: 1.9, soft: 0.35, rateMin: 0.92, rateMax: 1.08 };
       case "chat.msg":
         appendChat(data);
         break;
+      case "chat.seen": {
+        // Сообщение прочитано: отмечаем у себя и снимаем счётчик.
+        const mid = Number(data.id);
+        for (const item of $("chat").querySelectorAll(`.msg.mine[data-msg-id='${mid}']`)) {
+          item.classList.remove("unseen");
+          const seen = item.querySelector(".seen");
+          if (seen) seen.textContent = "прочитано";
+        }
+        break;
+      }
       case "host":
         me.host = data.host_id === me.id;
-        document.title = (me.host ? "★ " : "") + "Watch Together";
         renderPeers(lastPeers);
+        renderUnread();
         break;
       case "typing":
         showTyping(data);
@@ -314,13 +324,18 @@ let limits = { hard: 1.9, soft: 0.35, rateMin: 0.92, rateMax: 1.08 };
   function renderState() {
     if (!state) return;
     const playing = state.status === "playing";
+    const hasSource = !!state.source;
     $("room-title").textContent = state.title || `Комната ${state.room_id}`;
-    WT.setIcon($("play-icon"), playing ? "pause" : "play");
-    $("play-label").textContent = playing ? "Пауза" : "Пуск";
+    // Панель управления скрыта, пока нет источника: иначе она лежит поверх
+    // пустого экрана и выглядит как поломка.
+    $("player").hidden = !hasSource;
+    WT.setIcon($("play"), playing ? "pause" : "play");
+    WT.setIcon($("play-center-icon"), playing ? "pause" : "play");
     $("play").setAttribute("aria-label", playing ? "Пауза для всех" : "Пуск для всех");
+    $("play-center").setAttribute("aria-label", playing ? "Пауза для всех" : "Пуск для всех");
     me.host = state.host_id === me.id;
     $("delete-room").hidden = !me.host;
-    document.title = (me.host ? "★ " : "") + (state.source?.title || "Watch Together");
+    renderUnread();
 
     if (state.source_status !== lastSourceStatus) {
       lastSourceStatus = state.source_status;
@@ -329,7 +344,6 @@ let limits = { hard: 1.9, soft: 0.35, rateMin: 0.92, rateMax: 1.08 };
       }
     }
 
-    const hasSource = !!state.source;
     $("empty").hidden = hasSource;
     if (!hasSource) {
       const preparing = state.source_status === "preparing";
@@ -367,29 +381,104 @@ let limits = { hard: 1.9, soft: 0.35, rateMin: 0.92, rateMax: 1.08 };
     }
   }
 
-  function appendChat(message) {
+  function appendChat(message, { silent = false } = {}) {
     const log = $("chat");
     const nearBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 120;
     const node = document.createElement("div");
-    if (message.kind === "system") {
+    const isSystem = message.kind === "system";
+    if (isSystem) {
       node.className = "msg system";
       node.innerHTML = `<div class="bubble">${WT.escapeHtml(message.text)}</div>`;
     } else {
       const mine = message.author_id === me.id;
       node.className = "msg" + (mine ? " mine" : "");
+      const seenAt = message.seen_at ? WT.formatTime(message.seen_at) : "";
       node.innerHTML = `
-        <div class="meta">${WT.escapeHtml(message.author)} · ${WT.formatTime(message.ts)}</div>
+        <div class="meta">
+          <span>${WT.escapeHtml(message.author)}</span>
+          <span>${WT.formatTime(message.ts)}</span>
+        </div>
         <div class="bubble">${WT.escapeHtml(message.text)}</div>
+        ${mine ? `<div class="seen" data-id="${message.id}">${seenAt || ""}</div>` : ""}
       `;
+      node.__message = message;
+      if (message.id) node.dataset.msgId = message.id;
     }
     log.appendChild(node);
     while (log.children.length > 300) log.firstChild.remove();
+
+    // Сообщение от другого считается прочитанным, если вкладка чата активна,
+    // окно видно и лог пролистан вниз. Иначе — счётчик на вкладке и звук.
+    // Своё сообщение ждёт подтверждения от других.
+    const mine = !isSystem && message.author_id === me.id;
+    if (isSystem) {
+      node.classList.remove("unseen");
+    } else if (mine) {
+      if (message.seen_at) {
+        const seen = node.querySelector(".seen");
+        if (seen) seen.textContent = "прочитано";
+      } else {
+        node.classList.add("pending");
+      }
+    } else if (chatTabActive() && !document.hidden && nearBottom) {
+      markSeen(node, message);
+    } else {
+      node.classList.add("unseen");
+      unread += 1;
+      renderUnread();
+      if (!silent && soundOn) WT.ping("msg");
+    }
     if (nearBottom) log.scrollTop = log.scrollHeight;
   }
 
+  function chatTabActive() {
+    return document.querySelector('.side-tabs button[data-tab="chat"]').classList.contains("active");
+  }
+
+  function renderUnread() {
+    const badge = $("chat-unread");
+    badge.hidden = unread === 0;
+    badge.textContent = unread > 99 ? "99+" : String(unread);
+    // Счётчик в заголовке вкладки — про неё пользователь узнаёт, свернув окно.
+    const base = state?.source?.title || "Watch Together";
+    document.title = unread > 0 ? `(${unread}) ${base}` : (me.host ? "★ " : "") + base;
+  }
+
+  let unread = 0;
+  function clearUnread() {
+    if (unread === 0) return;
+    unread = 0;
+    renderUnread();
+  }
+
+  // Отмечаем прочитанными все сообщения, которые уже видны в логе.
+  function markSeenVisible() {
+    const log = $("chat");
+    if (!chatTabActive() || document.hidden) return;
+    if (log.scrollHeight - log.scrollTop - log.clientHeight > 24) return;
+    for (const node of log.querySelectorAll(".msg.unseen")) {
+      if (node.__message?.author_id === me.id) continue;
+      node.classList.remove("unseen");
+      markSeen(node, node.__message);
+    }
+    clearUnread();
+  }
+
+  function markSeen(node, message) {
+    if (!message || !message.id) return;
+    send({ type: "chat.seen", id: message.id });
+  }
+
+  // Прочитанным считаем сообщение, которое реально долистано до конца лога.
+  $("chat").addEventListener("scroll", markSeenVisible, { passive: true });
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) markSeenVisible();
+  });
+  window.addEventListener("focus", markSeenVisible);
+
   function renderHistory(messages) {
     $("chat").innerHTML = "";
-    for (const message of messages) appendChat(message);
+    for (const message of messages) appendChat(message, { silent: true });
   }
 
   function showTyping(data) {
@@ -405,7 +494,40 @@ let limits = { hard: 1.9, soft: 0.35, rateMin: 0.92, rateMax: 1.08 };
     }, 1500);
   }
 
-  $("play").onclick = () => control("toggle");
+  /* Панель управления прячется, когда смотрим и не трогаем экран.
+     На паузе остаётся видимой: без неё непонятно, чем продолжить.
+     На тач-устройствах наведения нет, поэтому скрываем только по бездействию. */
+  let idleTimer = null;
+  const canHover = window.matchMedia("(hover: hover)").matches;
+  function pokePlayer() {
+    $("player").classList.remove("idle");
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      if (state?.status === "playing" && !dragging) $("player").classList.add("idle");
+    }, 2600);
+  }
+  video.addEventListener("pointermove", pokePlayer);
+  video.addEventListener("pointerdown", pokePlayer);
+  // У курсора есть уход за пределы кадра, у пальца — нет: там панель
+  // возвращается тапом, поэтому убирать её по уходу нельзя.
+  if (canHover) {
+    video.addEventListener("pointerleave", () => {
+      clearTimeout(idleTimer);
+      if (state?.status === "playing" && !dragging) $("player").classList.add("idle");
+    });
+  }
+  $("seek").addEventListener("pointerdown", pokePlayer);
+  $("seek").addEventListener("input", pokePlayer);
+  pokePlayer();
+
+  $("play").onclick = () => {
+    control("toggle");
+    pokePlayer();
+  };
+  $("play-center").onclick = () => {
+    control("toggle");
+    pokePlayer();
+  };
   $("back").onclick = () => control("seek", { position: Math.max(0, targetPosition() - 10) });
   $("fwd").onclick = () => control("seek", { position: targetPosition() + 10 });
   $("mute").onclick = () => {
@@ -413,6 +535,22 @@ let limits = { hard: 1.9, soft: 0.35, rateMin: 0.92, rateMax: 1.08 };
     WT.setIcon($("mute"), video.muted ? "volume-off" : "volume");
     $("mute").setAttribute("aria-pressed", video.muted ? "true" : "false");
     $("mute").title = video.muted ? "Включить звук" : "Звук только у вас";
+  };
+
+  // Звук новых сообщений. Настройка общая для всех комнат и хранится локально.
+  let soundOn = localStorage.getItem("wt_sound") !== "0";
+  const soundButton = $("sound-toggle");
+  const paintSound = () => {
+    WT.setIcon(soundButton, soundOn ? "bell-ring" : "bell-off");
+    soundButton.setAttribute("aria-pressed", soundOn ? "true" : "false");
+    soundButton.title = soundOn ? "Выключить звук сообщений" : "Включить звук сообщений";
+  };
+  paintSound();
+  soundButton.onclick = () => {
+    soundOn = !soundOn;
+    localStorage.setItem("wt_sound", soundOn ? "1" : "0");
+    paintSound();
+    if (soundOn) WT.ping("msg");
   };
   $("fs").onclick = () => {
     if (document.fullscreenElement) document.exitFullscreen();
@@ -503,7 +641,8 @@ let limits = { hard: 1.9, soft: 0.35, rateMin: 0.92, rateMax: 1.08 };
       $("chat").hidden = !isChat;
       $("chat-form").hidden = !isChat;
       $("people").hidden = isChat;
-      if (!isChat) renderPeers(lastPeers);
+      if (isChat) markSeenVisible();
+      else renderPeers(lastPeers);
     };
   });
 

@@ -48,6 +48,13 @@ const ICON_PATHS = {
   check: '<polyline points="20 6.5 9.5 17 4 11.5"/>',
   star: '<path d="M12 3.2 14.7 9l6.3.9-4.5 4.4 1 6.3L12 17.6 6.5 20.6l1-6.3L3 9.9 9.3 9Z"/>',
   "play-circle": '<circle cx="12" cy="12" r="9"/><path d="M10 8.2 16 12l-6 3.8Z"/>',
+  bell: '<path d="M18 8.8a6 6 0 1 0-12 0c0 6.2-2.5 7.7-2.5 7.7h17S18 15 18 8.8"/><path d="M13.7 20.2a2 2 0 0 1-3.4 0"/>',
+  "bell-off":
+    '<path d="M18 8.8a6 6 0 0 0-9.3-5"/><path d="M6.1 6.2A6 6 0 0 0 6 8.8c0 6.2-2.5 7.7-2.5 7.7h13.2"/>' +
+    '<path d="M13.7 20.2a2 2 0 0 1-3.4 0"/><line x1="21" y1="4" x2="3" y2="22"/>',
+  "bell-ring":
+    '<path d="M18 8.8a6 6 0 1 0-12 0c0 6.2-2.5 7.7-2.5 7.7h17S18 15 18 8.8"/><path d="M13.7 20.2a2 2 0 0 1-3.4 0"/>' +
+    '<path d="M2 8.5a6 6 0 0 1 1.5-4"/><path d="M22 8.5a6 6 0 0 0-1.5-4"/>',
   clock: '<circle cx="12" cy="12" r="9"/><polyline points="12 6.5 12 12 15.5 14"/>',
 };
 
@@ -173,7 +180,38 @@ const WT = (() => {
     });
   }
 
-  return { uid, name, setName, api, establishSession, toast, formatTime, formatClock, escapeHtml, WS_TIMEOUT };
+  /* Короткий приятный «дзинь» через Web Audio, без аудиофайлов.
+     Контекст создаётся лениво: браузеры разрешают звук только после действия
+     пользователя, поэтому первый вызов идёт уже из обработчика клика. */
+  let audioCtx = null;
+  function ping(kind = "msg") {
+    try {
+      const Ctor = window.AudioContext || window.webkitAudioContext;
+      if (!Ctor) return;
+      if (!audioCtx) audioCtx = new Ctor();
+      if (audioCtx.state === "suspended") audioCtx.resume();
+
+      const now = audioCtx.currentTime;
+      const notes = kind === "msg" ? [880, 1320] : [660, 990];
+      notes.forEach((freq, index) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(freq, now + index * 0.09);
+        // Короткая огибающая: без неё звук щёлкает.
+        gain.gain.setValueAtTime(0.0001, now + index * 0.09);
+        gain.gain.exponentialRampToValueAtTime(0.14, now + index * 0.09 + 0.012);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + index * 0.09 + 0.18);
+        osc.connect(gain).connect(audioCtx.destination);
+        osc.start(now + index * 0.09);
+        osc.stop(now + index * 0.09 + 0.2);
+      });
+    } catch (err) {
+      /* звук — необязательная деталь, молча игнорируем */
+    }
+  }
+
+  return { uid, name, setName, api, establishSession, toast, formatTime, formatClock, escapeHtml, ping, WS_TIMEOUT };
 })();
 
 WT.icon = icon;

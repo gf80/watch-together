@@ -262,6 +262,112 @@ async def main() -> int:
             ))
             in {"#i-play", "#i-pause"},
         )
+        for control in ("play-center", "sound-toggle"):
+            info = await host.evaluate(
+                f"(() => {{ const el = document.getElementById({control!r});"
+                "return {title: el.title, hasSvg: !!el.querySelector('svg.ic')}; })()"
+            )
+            check(f"#{control}: иконка с подсказкой", bool(info["title"]) and info["hasSvg"], str(info))
+
+        print("\n== управление поверх видео ==")
+        overlay = await host.evaluate(
+            "(() => { const v = document.getElementById('video').getBoundingClientRect();"
+            " const p = document.getElementById('player').getBoundingClientRect();"
+            " const btn = document.getElementById('play').getBoundingClientRect();"
+            " return {same: Math.abs(v.top - p.top) < 2 && Math.abs(v.height - p.height) < 2,"
+            "  btnInside: btn.top >= v.top && btn.bottom <= v.bottom + 1,"
+            "  barVisible: p.height > 40}; })()"
+        )
+        check("панель лежит поверх видео, а не под ним", overlay["same"], str(overlay))
+        check("кнопки панели внутри кадра", overlay["btnInside"] is True, str(overlay))
+        check("панель занимает заметную высоту", overlay["barVisible"] is True, str(overlay))
+        # Панель прячется во время просмотра и возвращается по наведению.
+        await host.evaluate("document.getElementById('video').dispatchEvent(new PointerEvent('pointermove'))")
+        await host.wait_for_timeout(200)
+        shown = await host.evaluate("!document.getElementById('player').classList.contains('idle')")
+        check("панель появляется по наведению", shown is True)
+        await host.wait_for_timeout(3200)
+        idle = await host.evaluate("document.getElementById('player').classList.contains('idle')")
+        check("панель прячется при просмотре", idle is True)
+        # Скрытая панель не должна перехватывать клики по самому кадру.
+        check(
+            "скрытая панель не перехватывает события",
+            (await host.evaluate(
+                "(() => { const p = document.getElementById('player');"
+                " const v = document.getElementById('video');"
+                " const r = v.getBoundingClientRect();"
+                " const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);"
+                " return !!(hit && p.contains(hit)); })()"
+            ))
+            is False,
+        )
+        await host.mouse.move(6, 6)
+        await host.wait_for_timeout(200)
+        await host.evaluate("document.getElementById('video').dispatchEvent(new PointerEvent('pointermove'))")
+        await host.wait_for_timeout(300)
+        check(
+            "панель вернулась после наведения",
+            (await host.evaluate("!document.getElementById('player').classList.contains('idle')"))
+            is True,
+        )
+
+        print("\n== прочитано и звук ==")
+        check(
+            "счётчик непрочитанных скрыт, пока всё прочитано",
+            (await guest.evaluate("document.getElementById('chat-unread').hidden")) is True,
+        )
+        # Уводим гостя на вкладку зрителей: чат становится неактивной вкладкой,
+        # и входящее сообщение должно засчитаться как непрочитанное.
+        await guest.evaluate("document.querySelector('.side-tabs button[data-tab=people]').click()")
+        await guest.wait_for_timeout(200)
+        await host.fill("#chat-input", "Кто прочитал?")
+        await host.press("#chat-input", "Enter")
+        await guest.wait_for_timeout(1200)
+        unread = await guest.evaluate(
+            "(() => { const b = document.getElementById('chat-unread');"
+            " return {hidden: b.hidden, text: b.textContent, title: document.title}; })()"
+        )
+        check("непрочитанное помечено счётчиком", unread["hidden"] is False, str(unread))
+        check("счётчик содержит число", unread["text"].strip().isdigit(), str(unread))
+        check("счётчик попал в заголовок вкладки", unread["title"].startswith("("), str(unread))
+        # Возврат на чат должен снять отметку.
+        await guest.evaluate("document.querySelector('.side-tabs button[data-tab=chat]').click()")
+        await guest.wait_for_timeout(500)
+        check(
+            "счётчик сброшен после возврата в чат",
+            (await guest.evaluate("document.getElementById('chat-unread').hidden")) is True,
+        )
+        check(
+            "сообщение отмечено прочитанным у отправителя",
+            (await host.evaluate(
+                "!!Array.from(document.querySelectorAll('.msg.mine .seen'))"
+                ".find(n => n.textContent.trim() === 'прочитано')"
+            ))
+            is True,
+        )
+        check(
+            "у прочитанного сообщения нет класса unseen",
+            (await guest.evaluate(
+                "document.querySelectorAll('.msg.unseen').length"
+            ))
+            == 0,
+        )
+        sound = await guest.evaluate(
+            "(() => { const b = document.getElementById('sound-toggle');"
+            " return {pressed: b.getAttribute('aria-pressed'),"
+            "  href: b.querySelector('use').getAttribute('href'),"
+            "  stored: localStorage.getItem('wt_sound')}; })()"
+        )
+        check("звук сообщений включён по умолчанию", sound["pressed"] == "true", str(sound))
+        check("иконка звука соответствует состоянию", sound["href"] == "#i-bell-ring", str(sound))
+        check(
+            "звук выключается и запоминается",
+            (await guest.evaluate(
+                "(() => { document.getElementById('sound-toggle').click();"
+                " return localStorage.getItem('wt_sound'); })()"
+            ))
+            == "0",
+        )
         guest_del = await guest.evaluate("document.getElementById('delete-room').hidden")
         host_del = await host.evaluate("!document.getElementById('delete-room').hidden")
         check("у гостя нет кнопки удаления", guest_del is True)
@@ -284,6 +390,27 @@ async def main() -> int:
             layout["vW"] <= 391 and layout["vH"] < 844 * 0.5,
             str({k: round(v, 1) for k, v in layout.items()}),
         )
+        # Главный симптом: при открытой клавиатуре dvh уменьшается, и видео
+        # раньше схлопывалось. Проверяем, что высота не пропала.
+        keyboard = await host.evaluate(
+            "(() => { window.innerHeight = 420; window.dispatchEvent(new Event('resize'));"
+            " const v = document.getElementById('video').getBoundingClientRect();"
+            " return {h: v.height, w: v.width, top: v.top}; })()"
+        )
+        check(
+            "видео не схлопывается при малом экране (клавиатура)",
+            keyboard["h"] > 100 and keyboard["w"] > 100,
+            f"h={keyboard['h']:.0f} w={keyboard['w']:.0f}",
+        )
+        check(
+            "видео осталось в верхней части экрана",
+            keyboard["top"] < 200,
+            f"top={keyboard['top']:.0f}",
+        )
+        await host.evaluate(
+            "(() => { window.innerHeight = 844; window.dispatchEvent(new Event('resize')); })()"
+        )
+        await host.wait_for_timeout(200)
         check(
             "чат виден ниже видео",
             layout["cTop"] > layout["vTop"] and layout["cH"] > 100,
@@ -386,12 +513,23 @@ async def main() -> int:
         for field, text in (
             ("name", "Sasha"),
             ("title", "Friday Movie"),
-            ("join-id", "ab12"),
         ):
             await lobby.click(f"#{field}")
             await lobby.keyboard.type(text, delay=25)
             got = await lobby.input_value(f"#{field}")
             check(f"лобби: ввод в #{field} с клавиатуры", got == text, f"получено {got!r}")
+        check(
+            "в лобби нет поля ввода кода",
+            (await lobby.evaluate("!document.getElementById('join-id')")) is True,
+        )
+        check(
+            "кнопка обновления на месте и подписана",
+            (await lobby.evaluate(
+                "(() => { const b = document.getElementById('refresh');"
+                " return !!b && b.textContent.trim().length > 0; })()"
+            ))
+            is True,
+        )
         await lobby.screenshot(path="tests/screenshot-lobby.png")
         await lobby.click("#name")
         await lobby.keyboard.type("Host", delay=25)

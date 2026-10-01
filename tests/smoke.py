@@ -175,6 +175,44 @@ async def main() -> int:
             any(m["text"] == "Привет, всем!" for m in history.json()["messages"]),
         )
 
+        print("\n== прочитано ==")
+        await guest.send({"type": "chat.seen", "id": got["id"]})
+        seen = await host.wait_for("chat.seen")
+        check("автор получил отметку о прочтении", seen["id"] == got["id"], str(seen))
+        check("в отметке есть id читателя", bool(seen.get("user_id")), str(seen))
+        # Повторная отметка не должна переписывать время.
+        first_seen = seen["seen_at"]
+        await guest.send({"type": "chat.seen", "id": got["id"]})
+        again = await host.wait_until(
+            "chat.seen", lambda m: m["id"] == got["id"] and m["seen_at"] == first_seen, 3.0
+        )
+        check("повторная отметка не меняет время", bool(again))
+        # Мусорные и чужие id не должны ронять комнату и не должны вещать отметку.
+        await guest.send({"type": "chat.seen", "id": "не число"})
+        await guest.send({"type": "chat.seen", "id": -1})
+        await guest.send({"type": "chat.seen", "id": 999999})
+        await guest.send({"type": "chat", "text": "всё ещё работает"})
+        survived = await host.wait_for("chat.msg", text="всё ещё работает")
+        check("битые id не ломают комнату", bool(survived))
+        # Сообщение из чужой комнаты отмечать нельзя: id живёт в общей базе.
+        other = await http.post("/api/rooms", json={"nickname": "Посторонний"})
+        other_id = other.json()["id"]
+        outsider = Client("smoke-outsider", "Посторонний")
+        await outsider.connect(other_id)
+        await outsider.wait_for("welcome")
+        await outsider.send({"type": "chat", "text": "секретное"})
+        other_msg = await outsider.wait_for("chat.msg", text="секретное")
+        before = len([m for m in host.messages if m.get("type") == "chat.seen"])
+        await guest.send({"type": "chat.seen", "id": other_msg["id"]})
+        await asyncio.sleep(0.5)
+        after = [m for m in host.messages if m.get("type") == "chat.seen"]
+        check(
+            "чужое сообщение не отмечено прочитанным",
+            len(after) == before and not any(m["id"] == other_msg["id"] for m in after),
+            str(after),
+        )
+        await outsider.close()
+
         print("\n== синхронизация ==")
         await host.send({"type": "pb.control", "action": "play", "position": 120.5})
         state = await guest.wait_for("pb.state")

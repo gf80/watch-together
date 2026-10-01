@@ -354,6 +354,24 @@ class RoomManager:
         await self.broadcast(room, {"type": "chat.msg", **message})
         return message
 
+    async def mark_seen(self, room: Room, user: User, message_id: Any) -> None:
+        """Клиент сообщил, что прочитал сообщение: сохраняем и отдаём автору."""
+        try:
+            mid = int(message_id)
+        except (TypeError, ValueError):
+            return
+        if mid <= 0:
+            return
+        # Сообщение ищем внутри этой комнаты: чужие id отбрасываем молча,
+        # иначе участник одной комнаты влиял бы на историю другой.
+        seen_at = await self.db.mark_seen(room.id, mid)
+        if seen_at is None:
+            return
+        await self.broadcast(
+            room,
+            {"type": "chat.seen", "id": mid, "user_id": user.id, "seen_at": seen_at},
+        )
+
     async def schedule_broadcast_peers(self, room: Room, force: bool = False) -> None:
         now = time.time()
         if not force and now - room._last_peers < 1.0:
