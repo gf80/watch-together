@@ -26,7 +26,21 @@ if [ "$(id -u)" = "0" ]; then
         echo "watch-together: проверьте права: chown -R 1000:1000 data" >&2
     fi
 
-    exec su-exec "$APP_USER" "$@"
+    # setpriv вместо su-exec: su-exec удалили из Debian trixie, а setpriv есть
+    # в util-linux и не требует ни пароля, ни PAM. --reuid/--regid нужны,
+    # потому что login-шелл у wt не задан.
+    if command -v setpriv >/dev/null 2>&1; then
+        exec setpriv --reuid "$APP_USER" --regid "$APP_USER" --init-groups -- "$@"
+    fi
+    if command -v su-exec >/dev/null 2>&1; then
+        exec su-exec "$APP_USER" "$@"
+    fi
+    if command -v gosu >/dev/null 2>&1; then
+        exec gosu "$APP_USER" "$@"
+    fi
+
+    echo "watch-together: ВНИМАНИЕ — нет setpriv/su-exec/gosu, запускаюсь от root." >&2
+    exec "$@"
 fi
 
 exec "$@"

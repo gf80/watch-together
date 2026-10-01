@@ -10,12 +10,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # ffmpeg нужен для DASH/разбора потоков, curl — для healthcheck и свежего
-# yt-dlp, su-exec — чтобы сбросить привилегии после правки каталога данных.
+# yt-dlp. util-linux даёт setpriv: им сбрасываем привилегии после правки
+# каталога данных (su-exec в Debian trixie больше не существует).
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ffmpeg \
         curl \
         ca-certificates \
-        su-exec \
+        util-linux \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt ./
