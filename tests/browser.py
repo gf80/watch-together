@@ -282,10 +282,15 @@ async def main() -> int:
         check("кнопки панели внутри кадра", overlay["btnInside"] is True, str(overlay))
         check("панель занимает заметную высоту", overlay["barVisible"] is True, str(overlay))
         # Панель прячется во время просмотра и возвращается по наведению.
-        await host.evaluate("document.getElementById('video').dispatchEvent(new PointerEvent('pointermove'))")
-        await host.wait_for_timeout(200)
+        video_box = await host.evaluate(
+            "(() => { const r = document.getElementById('video').getBoundingClientRect();"
+            " return {x: r.left + r.width / 2, y: r.top + r.height * 0.3,"
+            "  top: r.top, height: r.height}; })()"
+        )
+        await host.mouse.move(video_box["x"], video_box["y"])
+        await host.wait_for_timeout(300)
         shown = await host.evaluate("!document.getElementById('player').classList.contains('idle')")
-        check("панель появляется по наведению", shown is True)
+        check("панель появляется по наведению на кадр", shown is True)
         await host.wait_for_timeout(3200)
         idle = await host.evaluate("document.getElementById('player').classList.contains('idle')")
         check("панель прячется при просмотре", idle is True)
@@ -301,14 +306,46 @@ async def main() -> int:
             ))
             is False,
         )
-        await host.mouse.move(6, 6)
+
+        # Регрессия: на ПК курсор шёл вниз по кадру к кнопке паузы, и панель
+        # гасла ровно под курсором — нажать было нельзя. Проверяем настоящим
+        # движением мыши и настоящим кликом.
+        await host.mouse.move(video_box["x"], video_box["y"])
         await host.wait_for_timeout(200)
-        await host.evaluate("document.getElementById('video').dispatchEvent(new PointerEvent('pointermove'))")
+        play_box = await host.evaluate(
+            "(() => { const r = document.getElementById('play').getBoundingClientRect();"
+            " return {x: r.left + r.width / 2, y: r.top + r.height / 2}; })()"
+        )
+        # Путь курсора: от центра кадра вниз к самой кнопке.
+        for step in range(1, 6):
+            await host.mouse.move(
+                video_box["x"] + (play_box["x"] - video_box["x"]) * step / 5,
+                video_box["y"] + (play_box["y"] - video_box["y"]) * step / 5,
+            )
+            await host.wait_for_timeout(40)
+        alive = await host.evaluate("!document.getElementById('player').classList.contains('idle')")
+        check("панель не гаснет, пока курсор идёт к кнопке паузы", alive is True)
         await host.wait_for_timeout(300)
         check(
-            "панель вернулась после наведения",
+            "кнопка паузы осталась под курсором",
             (await host.evaluate("!document.getElementById('player').classList.contains('idle')"))
             is True,
+        )
+        await host.click("#play")
+        await host.wait_for_timeout(700)
+        paused = await host.evaluate(
+            "(() => ({href: document.querySelector('#play use').getAttribute('href'),"
+            " visible: !document.getElementById('player').classList.contains('idle')}))()"
+        )
+        check("клик по кнопке паузы сработал", paused["href"] == "#i-play", str(paused))
+        check("панель не исчезла после нажатия паузы", paused["visible"] is True, str(paused))
+        # Возвращаем воспроизведение, чтобы дальнейшие проверки шли как обычно.
+        await host.click("#play")
+        await host.wait_for_timeout(700)
+        check(
+            "клик по кнопке пуска сработал",
+            (await host.evaluate("document.querySelector('#play use').getAttribute('href')"))
+            == "#i-pause",
         )
 
         print("\n== прочитано и звук ==")
@@ -390,27 +427,57 @@ async def main() -> int:
             layout["vW"] <= 391 and layout["vH"] < 844 * 0.5,
             str({k: round(v, 1) for k, v in layout.items()}),
         )
-        # Главный симптом: при открытой клавиатуре dvh уменьшается, и видео
-        # раньше схлопывалось. Проверяем, что высота не пропала.
+        # Открытая клавиатура = окно стало ниже. Меняем размер по-настоящему,
+        # иначе visualViewport не обновится и проверка ничего не скажет.
+        await host.set_viewport_size({"width": 390, "height": 420})
+        await host.wait_for_timeout(500)
         keyboard = await host.evaluate(
-            "(() => { window.innerHeight = 420; window.dispatchEvent(new Event('resize'));"
-            " const v = document.getElementById('video').getBoundingClientRect();"
-            " return {h: v.height, w: v.width, top: v.top}; })()"
+            "(() => { const v = document.getElementById('video').getBoundingClientRect();"
+            " const input = document.getElementById('chat-input').getBoundingClientRect();"
+            " const log = document.querySelector('.chat-log').getBoundingClientRect();"
+            " return {h: v.height, w: v.width, top: v.top, inputTop: input.top,"
+            "  logH: log.height, appH: getComputedStyle(document.body).height,"
+            "  scroll: document.documentElement.scrollHeight,"
+            "  client: document.documentElement.clientHeight,"
+            "  scrolled: window.scrollY}; })()"
         )
         check(
-            "видео не схлопывается при малом экране (клавиатура)",
+            "видео не схлопывается при открытой клавиатуре",
             keyboard["h"] > 100 and keyboard["w"] > 100,
             f"h={keyboard['h']:.0f} w={keyboard['w']:.0f}",
         )
+        # Главный симптом жалобы: экран уезжал вверх вместе с клавиатурой.
         check(
-            "видео осталось в верхней части экрана",
-            keyboard["top"] < 200,
-            f"top={keyboard['top']:.0f}",
+            "кадр не сдвинулся при открытии клавиатуры",
+            abs(keyboard["top"] - layout["vTop"]) < 2
+            and abs(keyboard["h"] - layout["vH"]) < 2,
+            f"было top={layout['vTop']:.0f} h={layout['vH']:.0f}, "
+            f"стало top={keyboard['top']:.0f} h={keyboard['h']:.0f}",
         )
-        await host.evaluate(
-            "(() => { window.innerHeight = 844; window.dispatchEvent(new Event('resize')); })()"
+        check(
+            "страница не уехала при открытии клавиатуры",
+            keyboard["scrolled"] == 0 and keyboard["scroll"] <= keyboard["client"] + 2,
+            f"scrollY={keyboard['scrolled']} "
+            f"scroll={keyboard['scroll']} client={keyboard['client']}",
         )
-        await host.wait_for_timeout(200)
+        check(
+            "высота комнаты следует за окном",
+            abs(float(keyboard["appH"][:-2]) - 420) < 4,
+            f"appH={keyboard['appH']}",
+        )
+        check(
+            "поле ввода осталось на экране при клавиатуре",
+            0 < keyboard["inputTop"] < 420,
+            f"inputTop={keyboard['inputTop']:.0f}",
+        )
+        check(
+            "лог чата не схлопнулся при клавиатуре",
+            keyboard["logH"] > 30,
+            f"logH={keyboard['logH']:.0f}",
+        )
+        await host.screenshot(path="tests/screenshot-mobile-keyboard.png")
+        await host.set_viewport_size({"width": 390, "height": 844})
+        await host.wait_for_timeout(400)
         check(
             "чат виден ниже видео",
             layout["cTop"] > layout["vTop"] and layout["cH"] > 100,

@@ -21,10 +21,24 @@
   let roomGone = false;
 
   const clock = { offset: 0, rtt: Infinity };
-let limits = { hard: 1.9, soft: 0.35, rateMin: 0.92, rateMax: 1.08 };
+  let limits = { hard: 1.9, soft: 0.35, rateMin: 0.92, rateMax: 1.08 };
 
   const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
   const serverNow = () => Date.now() / 1000 + clock.offset;
+
+  /* Высота окна для комнаты берётся из visualViewport — это единственная
+     величина, которая честно учитывает открытую клавиатуру. Через 100dvh
+     приходилось гадать, и страницу подкручивало к полю ввода: экран дёргался.
+     Плюс страница зафиксирована, поэтому автоскролл фокуса ей не мешает. */
+  const viewport = window.visualViewport;
+  const applyViewportHeight = () => {
+    const height = Math.round(viewport ? viewport.height : window.innerHeight);
+    document.body.style.setProperty("--app-height", `${height}px`);
+  };
+  applyViewportHeight();
+  viewport?.addEventListener("resize", applyViewportHeight);
+  viewport?.addEventListener("scroll", applyViewportHeight);
+  window.addEventListener("orientationchange", () => setTimeout(applyViewportHeight, 250));
 
   function targetPosition() {
     if (!state) return 0;
@@ -506,12 +520,17 @@ let limits = { hard: 1.9, soft: 0.35, rateMin: 0.92, rateMax: 1.08 };
       if (state?.status === "playing" && !dragging) $("player").classList.add("idle");
     }, 2600);
   }
-  video.addEventListener("pointermove", pokePlayer);
-  video.addEventListener("pointerdown", pokePlayer);
+  /* Слушаем на обёртке видео, а не на самом <video>: кнопки панели лежат
+     поверх кадра отдельным слоем, и на самом видео они не потомки. Слушатели
+     на <video> гасили панель ровно в момент, когда курсор доходил до кнопки
+     паузы, — нажать было нельзя. */
+  const wrap = $("video-wrap");
+  wrap.addEventListener("pointermove", pokePlayer);
+  wrap.addEventListener("pointerdown", pokePlayer);
   // У курсора есть уход за пределы кадра, у пальца — нет: там панель
   // возвращается тапом, поэтому убирать её по уходу нельзя.
   if (canHover) {
-    video.addEventListener("pointerleave", () => {
+    wrap.addEventListener("pointerleave", () => {
       clearTimeout(idleTimer);
       if (state?.status === "playing" && !dragging) $("player").classList.add("idle");
     });

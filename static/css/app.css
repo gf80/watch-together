@@ -37,6 +37,18 @@ body {
   height: 100%;
 }
 
+/* Комната никогда не прокручивается целиком: высоту задаёт visualViewport
+   (в CSS-переменной --app-height, её обновляет room.js), иначе при открытой
+   клавиатуре браузер подкручивал бы страницу к полю ввода и весь экран
+   «дёргался». Лобби оставляем обычным документом — там есть прокрутка. */
+body.room {
+  height: var(--app-height, 100dvh);
+  overflow: hidden;
+  position: fixed;
+  inset: 0;
+  width: 100%;
+}
+
 body {
   background: var(--bg);
   color: var(--text);
@@ -591,7 +603,7 @@ textarea:focus {
 .room-shell {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 350px;
-  height: 100dvh;
+  height: 100%;
   overflow: hidden;
 }
 
@@ -645,8 +657,8 @@ textarea:focus {
   justify-content: center;
   min-height: 0;
   background: #000;
-  /* Клавиатура на телефоне уменьшает dvh. Нижняя граница в пикселях не даёт
-     видео схлопнуться в ноль, когда остаётся мало места. */
+  /* Нижняя граница в пикселях: даже если окно совсем низкое, кадр не
+     схлопнется в ноль. */
   min-block-size: 150px;
   overflow: hidden;
 }
@@ -1084,10 +1096,16 @@ label.field > span {
     grid-template-rows: auto auto minmax(0, 1fr);
   }
 
+  /* Высота кадра задаётся шириной, а не текущей высотой окна. Это ключевой
+     момент: клавиатура меняет высоту окна, и видео с привязкой к ней меняло
+     бы размер — вот тот самый «дёргающийся» экран. svh — высота без
+     клавиатуры и без панелей браузера, она стабильна, поэтому в упор на
+     неё можно безопасно ограничивать кадр на низких экранах.
+     Освободившееся место спокойно занимает чат. */
   .video-wrap {
     flex: none;
     aspect-ratio: 16 / 9;
-    max-height: 40dvh;
+    max-height: min(40vw, 52svh);
     min-height: 0;
   }
 
@@ -1129,13 +1147,9 @@ label.field > span {
   }
 }
 
-/* Когда клавиатура открыта, dvh уменьшается. Оставляем видео читаемым,
-   а остальное место отдаём чату: так картинка не исчезает из экрана. */
-@media (max-width: 900px) and (max-height: 620px) {
-  .video-wrap {
-    max-height: 32dvh;
-  }
-
+/* Телефон в альбомной ориентации: места по вертикали мало, шапку ужимаем.
+   Размер кадра не трогаем — он и так ограничен svh выше. */
+@media (max-width: 900px) and (orientation: landscape) {
   .topbar {
     padding: 4px 8px;
   }
