@@ -1104,8 +1104,9 @@ label.field > span {
      Освободившееся место спокойно занимает чат. */
   .video-wrap {
     flex: none;
-    aspect-ratio: 16 / 9;
+    /*aspect-ratio: 16 / 9;
     max-height: min(40vw, 52svh);
+    */
     min-height: 0;
   }
 
