@@ -130,6 +130,88 @@ async def main() -> int:
         await guest.click(".side-tabs button[data-tab='chat']")
         await guest.wait_for_timeout(200)
 
+        print("\n== отправка: без моргания и без потери клавиатуры ==")
+        # Регрессия 1: индикатор «печатает…» занимал тот же элемент, что и
+        # бейдж синхронизации. Тик каждые 500 мс возвращал «синхронно», и у
+        # второго участника дёргалась высота шапки вместе с кадром.
+        await guest.click("#chat-input")
+        await guest.type("#chat-input", "Печатаю длинное сообщение")
+        # Индикатор живёт 1.8 с, поэтому шлём событие прямо перед проверкой
+        # и смотрим сразу: иначе тест ловит уже скрытую плашку.
+        await guest.evaluate(
+            "(() => { const el = document.getElementById('chat-input');"
+            " el.dispatchEvent(new Event('input', {bubbles: true})); })()"
+        )
+        await host.wait_for_timeout(400)
+        typing_shown = await host.evaluate(
+            "(() => { const t = document.getElementById('typing');"
+            " const b = document.getElementById('sync-badge');"
+            " return {typingHidden: t.hidden, typingText: t.textContent,"
+            "  syncText: b.textContent}; })()"
+        )
+        check("у второго участника виден индикатор набора", typing_shown["typingHidden"] is False, str(typing_shown))
+        check(
+            "индикатор набора показывает имя автора",
+            "печатает" in typing_shown["typingText"],
+            str(typing_shown),
+        )
+        # Ключевая проверка: индикатор не занимает бейдж синхронизации.
+        check(
+            "бейдж синхронизации не перебит индикатором",
+            "печатает" not in typing_shown["syncText"],
+            str(typing_shown),
+        )
+        # Высота шапки и кадра во время набора не должна прыгать.
+        await host.evaluate(
+            "(() => { window.__top = document.querySelector('.topbar').getBoundingClientRect().height;"
+            " window.__vid = document.getElementById('video').getBoundingClientRect().height; })()"
+        )
+        await host.wait_for_timeout(1600)
+        stable = await host.evaluate(
+            "(() => { const t = document.querySelector('.topbar').getBoundingClientRect().height;"
+            " const v = document.getElementById('video').getBoundingClientRect().height;"
+            " return {top: Math.abs(t - window.__top), vid: Math.abs(v - window.__vid)}; })()"
+        )
+        check(
+            "шапка не дёргается при наборе текста",
+            stable["top"] < 1.5,
+            f"разница {stable['top']:.1f}px",
+        )
+        check(
+            "кадр не дёргается при наборе текста",
+            stable["vid"] < 1.5,
+            f"разница {stable['vid']:.1f}px",
+        )
+
+        # Регрессия 2: кнопка «Отправить» забирала фокус, и на телефоне
+        # закрывалась клавиатура. Проверяем на реальном тапе по кнопке.
+        send_box = await guest.evaluate(
+            "(() => { const r = document.querySelector('#chat-form button[type=submit]')"
+            ".getBoundingClientRect(); return {x: r.left + r.width / 2, y: r.top + r.height / 2}; })()"
+        )
+        await guest.mouse.move(send_box["x"], send_box["y"])
+        await guest.mouse.down()
+        await guest.mouse.up()
+        await guest.wait_for_timeout(400)
+        focus_after_send = await guest.evaluate(
+            "(() => ({id: document.activeElement.id,"
+            " text: document.getElementById('chat-input').value}))()"
+        )
+        check(
+            "после отправки фокус остался в поле ввода",
+            focus_after_send["id"] == "chat-input",
+            str(focus_after_send),
+        )
+        check(
+            "поле ввода очищено после отправки",
+            focus_after_send["text"] == "",
+            str(focus_after_send),
+        )
+        check(
+            "сообщение ушло по кнопке",
+            "Печатаю длинное сообщение" in await host.locator("#chat").inner_text(),
+        )
+
         print("\n== источник ==")
         await host.click("#set-source")
         await host.wait_for_timeout(300)
@@ -186,8 +268,14 @@ async def main() -> int:
             drift < 0.35,
             f"drift={drift:.2f} host={host_pos:.2f} guest={guest_pos:.2f}",
         )
+        # Надписи снимаем в том же цикле, в котором условие выполнилось: иначе
+        # после долгого ожидания читаем уже другой кадр.
+        texts = []
         for _ in range(40):
-            texts = [(await host.text_content("#sync-badge")) or "", (await guest.text_content("#sync-badge")) or ""]
+            texts = [
+                (await host.text_content("#sync-badge")) or "",
+                (await guest.text_content("#sync-badge")) or "",
+            ]
             if all("синхронно" in value.lower() for value in texts):
                 break
             await host.wait_for_timeout(500)

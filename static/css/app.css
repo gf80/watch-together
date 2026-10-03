@@ -374,6 +374,12 @@ textarea:focus {
   }
 }
 
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);
@@ -615,7 +621,10 @@ textarea:focus {
   background: #0a0c0e;
 }
 
-/* Верхняя панель комнаты */
+/* Верхняя панель комнаты.
+   flex-wrap здесь был причиной моргания: текст бейджа синхронизации
+   меняется каждые 500 мс («синхронно», «+0.42с», «перемотка по комнате»),
+   при переносах это меняло высоту шапки, а вместе с ней — размер кадра. */
 .topbar {
   display: flex;
   align-items: center;
@@ -623,7 +632,7 @@ textarea:focus {
   padding: 8px 10px;
   background: var(--bg-2);
   border-bottom: 1px solid var(--border-soft);
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .room-title {
@@ -632,12 +641,14 @@ textarea:focus {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  min-width: 60px;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .sync-badge {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   font-size: 12px;
   padding: 4px 9px;
@@ -646,6 +657,20 @@ textarea:focus {
   border: 1px solid var(--border);
   color: var(--muted);
   white-space: nowrap;
+  flex: none;
+  /* Фиксированная ширина: смена текста не должна двигать шапку. */
+  min-width: 104px;
+  max-width: 40vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sync-badge.typing {
+  min-width: 0;
+  max-width: 40vw;
+  color: var(--text);
+  background: var(--bg-4);
+  animation: fade-in 0.18s var(--ease);
 }
 
 /* Видео */

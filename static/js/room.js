@@ -265,7 +265,10 @@
 
   function reconcile() {
     if (!state?.source || state.source_status !== "ready") return;
-    if (document.activeElement === $("chat-input")) return;
+    // Раньше здесь был выход, если фокус в поле чата. Он выглядел безобидным,
+    // но из-за него участник, который печатал сообщение, не мог возобновить
+    // видео: play() не вызывался, плеер стоял, а дрейф копился. Фокус в чату
+    // не должен влиять на синхронизацию.
     if (state.status === "playing") {
       if (video.paused) {
         video.play().catch(() => {
@@ -495,17 +498,18 @@
     for (const message of messages) appendChat(message, { silent: true });
   }
 
+  /* «Печатает…» живёт в отдельной плашке, а не в бейдже синхронизации.
+     Раньше они занимали один элемент: tick() каждые 500 мс возвращал
+     «синхронно», и у второго участника экран моргал всю время набора. */
   function showTyping(data) {
     if (data.user_id === me.id) return;
-    const badge = $("sync-badge");
-    const previous = badge.dataset.typing;
-    badge.dataset.typing = data.name;
-    badge.textContent = `${data.name} печатает…`;
+    const typing = $("typing");
+    typing.hidden = false;
+    typing.textContent = `${data.name} печатает…`;
     clearTimeout(typingTimer);
     typingTimer = setTimeout(() => {
-      badge.dataset.typing = "";
-      tick();
-    }, 1500);
+      typing.hidden = true;
+    }, 1800);
   }
 
   /* Панель управления прячется, когда смотрим и не трогаем экран.
@@ -635,12 +639,22 @@
 
   const chatForm = $("chat-form");
   const chatInput = $("chat-input");
+  /* Кнопка отправки не должна забирать фокус: на телефоне это закрывало
+     клавиатуру. Возвращаем фокус в поле и после отправки. */
+  chatForm.querySelector("button[type=submit]").addEventListener(
+    "pointerdown",
+    (event) => event.preventDefault(),
+    { passive: false },
+  );
   chatForm.onsubmit = (event) => {
     event.preventDefault();
     const text = chatInput.value.trim();
     if (!text) return;
     send({ type: "chat", text });
     chatInput.value = "";
+    // Фокус остаётся в поле: иначе на телефоне закрывается клавиатура
+    // и приходится открывать её заново для следующего сообщения.
+    chatInput.focus();
     $("chat").scrollTop = $("chat").scrollHeight;
   };
   let lastTypingSent = 0;
